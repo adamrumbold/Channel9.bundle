@@ -8,12 +8,10 @@ Plugin development instructions:
 ---------------
 - USE         -
 ---------------
-Add the Contents folder to a new folder
-Rename new folder to <PLUGIN_NAME>.bundle
 Copy bundle to : ~/Library/Application\ Support/Plex\ Media\ Server/Plug-ins
 
 ---------------
 - Community   -
 ---------------
-Any modifications/improvements can get update on the Plex forums for their unsupported plugins - 
+Any modifications/improvements should be uploaded to the Plex forums where this plugin is listed as an unsupported plugin - 
 http://wiki.plexapp.com/index.php/Unsupported_plugins
