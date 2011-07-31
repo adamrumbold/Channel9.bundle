@@ -1,0 +1,19 @@
+---------------
+- README      -
+---------------
+To use as a Video Plugin on Plex Media Server.  
+PlexApp details: http://plexapp.com
+Plugin development instructions: 
+
+---------------
+- USE         -
+---------------
+Add the Contents folder to a new folder
+Rename new folder to <PLUGIN_NAME>.bundle
+Copy bundle to : ~/Library/Application\ Support/Plex\ Media\ Server/Plug-ins
+
+---------------
+- Community   -
+---------------
+Any modifications/improvements can get update on the Plex forums for their unsupported plugins - 
+http://wiki.plexapp.com/index.php/Unsupported_plugins
