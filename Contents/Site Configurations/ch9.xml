@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<site site="http://fixplay.ninemsn.com.au/.*"
+    plugin="silverlight"
+ 	initialState="playing"
+ 	version="1.0">
+
+<crop x="0" y="0" width="642" height="380" />
+
+<seekbar type="simple">
+ <start x="48" y="308" />
+ <end   x="185" y="308" />
+ <played>
+   <condition>
+    <command name="play" />
+    </condition>
+  </played>
+
+</seekbar>
+
+<state name="playing">
+  <event>
+   <condition>
+    <command name="pause" />
+   </condition>
+   <action>
+    <click x="19" y="301" />
+    <goto state="paused" />
+   </action>
+  </event>
+ </state>
+
+ <state name="paused">
+  <event>
+   <condition>
+    <command name="play" />
+   </condition>
+   <action>
+    <click x="19" y="301" />
+    <goto state="playing" />
+   </action>
+  </event>
+ </state>
+
+</site>
