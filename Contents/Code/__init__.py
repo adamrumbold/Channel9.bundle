@@ -2,11 +2,10 @@
 from PMS import *
 from PMS.Objects import *
 from PMS.Shortcuts import *
-import re
 
 ####################################################################################################
 
-VERSION = 0.2
+VERSION = 0.3
 
 VIDEO_PREFIX = "/video/ch9"
 
@@ -51,37 +50,24 @@ def SeasonMenu(sender, pageUrl, thumbUrl):
     Log("In season menu")
     myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
     xpathQuery = '//div[@id="cat_hl_224591"]/span/span/a'
-    Log ("reading pageUrl: " + pageUrl)
-  
+    Log ("reading pageUrl: " + pageUrl[:29] + "##" + pageUrl[30:])
     dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
-    content = XML.ElementFromURL(pageUrl, True)
-    videopage = HTTP.Request(pageUrl)
-    #vidurl  = re.search("QTObject\(\"(.+?)\"", videopage).group(1)
-    vidIter = re.finditer("\/section.aspx\?sectionid=.+?\<", videopage)
-    seasons = {}
+    content = XML.ElementFromURL(pageUrl[:29]+pageUrl[30:], True)
+    seasons = []
+    for item in content.xpath('//body/div/form/div/div/div/div/div/div/div/div/span/span/a'):
+        Log("matched" + item.text +">>>"+ item.get('href'))
+        if item.text not in seasons:
+            seasons.append(item.text)
+            dir.Append(Function(DirectoryItem(VideoPage, title=item.text,thumb=thumbUrl),pageUrl=item.get('href'), seriesTitle=item.text))
     
-    for match in vidIter:
-        Log("found match: "+ match.group())
-        seasonURL = re.search("\/.+?\"", match.group()).group()
-        lengthUrl = len(seasonURL)
-        seasonURL = FIX_PLAY_ROOT + seasonURL[0:lengthUrl-1]
-        seasonTxt = re.search("\>.+\s.+\<", match.group()).group()
-        lengthTxt = len(seasonTxt)
-        seasonTxt = seasonTxt[1:lengthTxt-1]
-        if not seasons.has_key(seasonURL):
-            seasons[seasonURL] = seasonTxt
-            Log("seasonURL=" + seasonURL)
-            Log("seasonTxt=" + seasonTxt)
-            dir.Append(Function(DirectoryItem(VideoPage, title=seasonTxt, thumb=thumbUrl), pageUrl = seasonURL))
-        
     return dir
 
 ####################################################################################################
-def VideoPage(sender, pageUrl):
+def VideoPage(sender, pageUrl, seriesTitle):
     dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
     myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
-    content = XML.ElementFromURL(pageUrl, True)
-    Log ("reading pageUrl: " + pageUrl)
+    Log ("reading pageUrl: " + FIX_PLAY_ROOT + pageUrl[1:])
+    content = XML.ElementFromURL(FIX_PLAY_ROOT + pageUrl[1:], True)
     xpathQuery = "//*[@id=\"season_table\"]/span/div"
     for item in content.xpath(xpathQuery, namespaces=myNamespaces):
         episode = item.xpath(".//div")[0].text
