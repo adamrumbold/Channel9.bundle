@@ -18,7 +18,9 @@ ART           = 'art-ch9.jpg'
 ICON          = 'icon-default.jpg'
 
 FIX_PLAY_ROOT = "http://fixplay.ninemsn.com.au/"
+FIX_PLAY_ROOT2 = "http://catchup.ninemsn.com.au/"
 FIX_PLAY_LIST = "http://fixplay.ninemsn.com.au/catalogue.aspx"
+
 ####################################################################################################
 def Start():
 
@@ -35,12 +37,12 @@ def Start():
 def MainMenu():
     dir = MediaContainer(viewGroup="List")
     content = XML.ElementFromURL(FIX_PLAY_LIST, True)
-    for item in content.xpath('//div[@id="cat_hl_220089"]/span'):
-        image = item.xpath('./span[@class="image"]/a/img')[0].get('src')
-        image = FIX_PLAY_ROOT + image
-        title = item.xpath('./span[@class="title"]/a[2]')[0].text
-        link = item.xpath('./span[@class="title"]/a[2]')[0].get('href')
-        link = FIX_PLAY_ROOT + link
+    for item in content.xpath('//div//div/div[@id="Catalog_right_col"]/span/li'):
+        image = item.xpath('./div[2]/img')[0].get('src')
+        image = image
+        title = item.xpath('./a/div/span[1]')[0].text
+        link = item.xpath('./a')[0].get('href')
+        link = FIX_PLAY_ROOT2 + link
         Log ("MainMenu -Link: " + link)
         dir.Append(Function(DirectoryItem(SeasonMenu, title=title, thumb=image), pageUrl = link, thumbUrl=image))
     return dir
@@ -48,7 +50,7 @@ def MainMenu():
 ####################################################################################################
 def SeasonMenu(sender, pageUrl, thumbUrl):
     Log("In season menu")
-    myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
+    myNamespaces     = {'ns1':'http://www.w3.org/1999/xhtml'}
     xpathQuery = '//div[@id="cat_hl_224591"]/span/span/a'
     Log ("reading pageUrl: " + pageUrl[:29] + "##" + pageUrl[30:])
     dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
