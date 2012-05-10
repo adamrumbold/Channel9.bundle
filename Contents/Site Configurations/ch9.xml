@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<site site="http://fixplay.ninemsn.com.au/.*"
+<site site="http://catchup.ninemsn.com.au/.*"
     plugin="silverlight"
- 	initialState="playing"
+     initialState="playing"
  	version="1.0">
 
 <crop x="0" y="0" width="642" height="380" />
@@ -24,7 +24,10 @@
     <command name="pause" />
    </condition>
    <action>
-    <click x="19" y="301" />
+    <move x="37" y="300" /> <!-- show the progress bar -->
+    <type text=" " />
+    <pause time="250" />
+    <click x="37" y="337" />
     <goto state="paused" />
    </action>
   </event>
@@ -36,7 +39,9 @@
     <command name="play" />
    </condition>
    <action>
-    <click x="19" y="301" />
+    <move x="37" y="300" /> <!-- show the progress bar -->
+    <click x="37" y="337" />
+    <move x="37" y="200" /> <!-- hide the progress bar -->
     <goto state="playing" />
    </action>
   </event>
