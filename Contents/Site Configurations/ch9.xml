@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <site site="http://catchup.ninemsn.com.au/.*"
-    plugin="silverlight"
+     plugin="http://c.brightcove.com/services/viewer*"
      initialState="playing"
- 	version="1.0">
+    	version="1.0">
 
 <crop x="0" y="0" width="642" height="380" />
 
