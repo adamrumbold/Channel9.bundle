@@ -30,7 +30,7 @@ def Start():
 ####################################################################################################
 def MainMenu():
     dir = MediaContainer(viewGroup="List")
-    content = HTML.ElementFromURL(FIX_PLAY_LIST, True)
+    content = HTML.ElementFromURL(FIX_PLAY_LIST)
     for item in content.xpath('//div[@id="Catalog_right_col"]/span/li'):
         image = item.xpath('div[@class="showimage"]/img')[0].get('src')
         #image = FIX_PLAY_ROOT + image
@@ -46,7 +46,7 @@ def SeasonMenu(sender, pageUrl, thumbUrl):
     myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
     Log ("reading pageUrl: " + pageUrl[:29] + "##" + pageUrl[30:])
     dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
-    content = HTML.ElementFromURL(pageUrl[:29]+"/"+pageUrl[30:], True)
+    content = HTML.ElementFromURL(pageUrl[:29]+"/"+pageUrl[30:])
     seasons = []
     for item in content.xpath('//div[@class="season_tabs_container"]/div/div/span/span/a'):
         Log("matched" + item.text +">>>"+ item.get('href'))
@@ -60,7 +60,7 @@ def VideoPage(sender, pageUrl, seriesTitle):
     dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
     myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
     Log ("reading pageUrl: " + FIX_PLAY_ROOT + pageUrl[1:])
-    content = HTML.ElementFromURL(FIX_PLAY_ROOT + "/" + pageUrl[1:], True)
+    content = HTML.ElementFromURL(FIX_PLAY_ROOT + "/" + pageUrl[1:])
     xpathQuery = "//*[@id=\"season_table\"]/span/div"
     for item in content.xpath(xpathQuery, namespaces=myNamespaces):
         episode = "Ep " + item.xpath(".//div")[0].text
