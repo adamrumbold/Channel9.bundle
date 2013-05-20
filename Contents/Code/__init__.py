@@ -11,8 +11,8 @@ NAME = L('Title')
 # make sure to replace artwork with what you want
 # these filenames reference the example files in
 # the Contents/Resources/ folder in the bundle
-ART           = 'art-ch9.jpg'
-ICON          = 'icon-default.jpg'
+ART           = 'channel9bkg.jpg'
+ICON          = 'ch9new.PNG'
 
 FIX_PLAY_ROOT = "http://catchup.ninemsn.com.au"
 FIX_PLAY_LIST = "http://catchup.ninemsn.com.au/catalogue.aspx"
