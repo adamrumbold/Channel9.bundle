@@ -1,39 +1,28 @@
 
 def MetadataObjectForURL(url):
-    Log('*******')
-    Log('ServiceCode: MetadataObjectForURL ' + url)
-   
+    
     data = JSON.ObjectFromURL(url)
     title = data['name']
     summary = data['shortDescription']
     thumb = data['thumbnailURL']
     duration = data['length']
-    #originally_available_at = DateTime.FromTimestamp(int(data['publishedDate']))
-    Log(title)
-    Log(summary)
-    Log(thumb)
-    Log(str(duration))
-    #Log(str(originally_available_at))
-    Log('*******')
+    originally_available_at = Datetime.FromTimestamp(int(data['publishedDate'])/1000)
     
     return VideoClipObject(
         title=title,
         summary=summary,
         thumb=thumb,
         duration=duration,
-        #originally_available_at=originally_available_at,
+        originally_available_at=originally_available_at,
     )
 
 
 def MediaObjectsForURL(url):
-    Log('*******')
-    Log('ServiceCode: MediaObjectForURL ' + url)
-    Log('*******')
+    
     container = Container.MP4
     video_codec = VideoCodec.H264
     audio_codec = AudioCodec.AAC
     audio_channels = 2
-
 
     return [
         MediaObject(
@@ -47,11 +36,7 @@ def MediaObjectsForURL(url):
         ),
     ]
 
-    
 def PlayVideo(url):
-    Log('*******')
-    Log('ServiceCode: PlayVideo ' + url)
-    Log('*******')
-    data = JSON.ObjectFromURL(url)
     
+    data = JSON.ObjectFromURL(url)    
     return Redirect(data['FLVURL'])

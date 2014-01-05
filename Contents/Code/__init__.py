@@ -20,13 +20,13 @@ SEARCH_URL = API_URL +'search_videos' + '&video_fields=id,name,shortDescription,
 def Start():
 
     Plugin.AddPrefixHandler(VIDEO_PREFIX, HomeMenu, L('VideoTitle'), ICON, ART)
-    Plugin.AddViewGroup("InfoList", viewMode="InfoList", mediaType="items")
-    Plugin.AddViewGroup("List", viewMode="List", mediaType="items")
+    Plugin.AddViewGroup('InfoList', viewMode='InfoList', mediaType='items')
+    Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
     MediaContainer.art = R(ART)
     MediaContainer.title1 = NAME
     DirectoryItem.thumb = R(ICON) 
     
-@route(VIDEO_PREFIX+ '/home')
+@route(VIDEO_PREFIX + '/home')
 def HomeMenu():
     
     oc = ObjectContainer(title2='CH9 On Demand', view_group='List')
@@ -72,8 +72,17 @@ def ShowMenu(showQuery=None):
                 title=show['name'],
                 thumb = show['thumbnailURL'],
                 duration = show['length'],
-                #originally_available_at = DateTime.FromTimestamp(int(item['publishedDate'])),            
+                originally_available_at = Datetime.FromTimestamp(int(show['publishedDate'])/1000),            
             ))
+        
+        if len(oc) == 0:
+            oc.add(DirectoryObject(
+                key=Callback(ShowMenu),
+                title='..',
+                thumb=R(ICON),
+            ))    
+    
+    oc.objects.sort(key=lambda obj: obj.title)        
     return oc
         
     
@@ -109,7 +118,15 @@ def PlaylistMenu(playlistID=None):
                 title=item['name'],
                 thumb = item['thumbnailURL'],
                 duration = item['length'],
-                #originally_available_at = DateTime.FromTimestamp(int(item['publishedDate'])),            
+                originally_available_at = Datetime.FromTimestamp(int(item['publishedDate'])/1000),            
             ))
-          
+            
+        if len(oc) == 0:
+            oc.add(DirectoryObject(
+                key=Callback(PlaylistMenu),
+                title='..',
+                thumb=R(ICON),
+            ))
+    
+    oc.objects.sort(key=lambda obj: obj.title)
     return oc
