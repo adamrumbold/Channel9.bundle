@@ -3,10 +3,6 @@ import re
 BASE_URL = 'http://channelnine.ninemsn.com.au/video'
 VIDEO_PREFIX = "/video/ch9"
 NAME = L('Title')
-
-# make sure to replace artwork with what you want
-# these filenames reference the example files in
-# the Contents/Resources/ folder in the bundle
 ART           = 'art-ch9.jpg'
 ICON          = 'icon-default.jpg'
 API_URL = 'http://api.brightcove.com/services/library?command='
@@ -15,7 +11,7 @@ PLAYLIST_URL = API_URL + 'find_playlist_by_id' #+ '&playlist_fields=id,name,shor
 TOKEN = 'Vb3fqavTKFDDZbnnGGtbhKxam7uHduOnob-2MJlpHmUnzSMWbDe5bg..'
 VIDEO_URL = API_URL +'find_video_by_id' + '&video_fields=id,name,shortDescription,longDescription,creationDate,publishedDate,thumbnailURL,length,FLVURL'
 SEARCH_URL = API_URL +'search_videos' + '&video_fields=id,name,shortDescription,longDescription,creationDate,publishedDate,thumbnailURL,length,FLVURL'
-
+DEFAULT_CACHE_INTERVAL = 9000
 ####################################################################################################
 def Start():
 
@@ -24,7 +20,7 @@ def Start():
     Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
     MediaContainer.art = R(ART)
     MediaContainer.title1 = NAME
-    DirectoryItem.thumb = R(ICON) 
+    DirectoryItem.thumb = R(ICON)
     
 @route(VIDEO_PREFIX + '/home')
 def HomeMenu():
@@ -33,14 +29,14 @@ def HomeMenu():
     link = DirectoryObject(
                 key=Callback(ShowMenu),
                 title='By Program',
-                thumb=R(ICON)
+                thumb=R(ICON),
                 )
     oc.add(link)
     
     link = DirectoryObject(
                 key=Callback(PlaylistMenu),
                 title='By Category',
-                thumb=R(ICON)
+                thumb=R(ICON),
     )
     oc.add(link)
     return oc
@@ -50,7 +46,7 @@ def ShowMenu(showQuery=None):
     
     if showQuery is None:
         oc = ObjectContainer(title2='shows', view_group='List')
-        shows = XML.ElementFromURL('http://vod.ten.com.au/config/windows8/?includeAll=Sites.VideoQueries&appid=F%2fuisp9hN%2bE%3d')
+        shows = XML.ElementFromURL('http://vod.ten.com.au/config/windows8/?includeAll=Sites.VideoQueries&appid=F%2fuisp9hN%2bE%3d', cacheTime=DEFAULT_CACHE_INTERVAL)
         for show in shows.xpath("/application/home/videoGroups/videoGroup[@title='TV Shows']/items/item"):
             showName = show.xpath("name")[0].text
             thumb = show.xpath("image")[0].text            
@@ -65,7 +61,7 @@ def ShowMenu(showQuery=None):
             
     else:
         oc = ObjectContainer(title2=showQuery, view_group='InfoList')
-        content = JSON.ObjectFromURL(SEARCH_URL + '&token=' + TOKEN + '&all=' + showQuery)
+        content = JSON.ObjectFromURL(SEARCH_URL + '&token=' + TOKEN + '&all=' + showQuery, cacheTime=DEFAULT_CACHE_INTERVAL)
         for show in content['items']:
             oc.add(VideoClipObject(
                 url=VIDEO_URL+ '&video_id='+str(show['id'])+'&token='+ TOKEN,
@@ -91,12 +87,12 @@ def ShowMenu(showQuery=None):
 def PlaylistMenu(playlistID=None):
                     
     if playlistID is None:
-        content = JSON.ObjectFromURL(CAT_URL + '&token=' + TOKEN)
+        content = JSON.ObjectFromURL(CAT_URL + '&token=' + TOKEN, cacheTime= DEFAULT_CACHE_INTERVAL)
         title = 'Playlists'
         oc = ObjectContainer(title2=title, view_group='List')
     
     else:
-        content = JSON.ObjectFromURL(PLAYLIST_URL + '&playlist_id=' + str(playlistID) + '&token=' + TOKEN)
+        content = JSON.ObjectFromURL(PLAYLIST_URL + '&playlist_id=' + str(playlistID) + '&token=' + TOKEN, cacheTime = DEFAULT_CACHE_INTERVAL)
         title = content['name']
         oc = ObjectContainer(title2=title, view_group='InfoList')
     
@@ -107,7 +103,7 @@ def PlaylistMenu(playlistID=None):
                 link = DirectoryObject(
                 key=Callback(PlaylistMenu, playlistID=item['id']),
                 title=item['name'],
-                thumb=R(ICON)
+                thumb=R(ICON),
                 )
                 oc.add(link)
     else:
