@@ -5,11 +5,11 @@
     <key>CFBundleExecutable</key>
     <string>Hello</string>
     <key>CFBundleIdentifier</key>
-    <string>com.plexapp.plugins.fixplay</string>
+    <string>com.plexapp.plugins.ch9</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>PlexFrameworkVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>CFBundlePackageType</key>
     <string>AAPL</string>
     <key>CFBundleSignature</key>

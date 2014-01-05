@@ -1,15 +1,7 @@
-# PMS plugin framework
-from PMS import *
-from PMS.Objects import *
-from PMS.Shortcuts import *
-import re
 
-####################################################################################################
 
-VERSION = 0.2
-
+BASE_URL = 'http://channelnine.ninemsn.com.au/video'
 VIDEO_PREFIX = "/video/ch9"
-
 NAME = L('Title')
 
 # make sure to replace artwork with what you want
@@ -18,78 +10,60 @@ NAME = L('Title')
 ART           = 'art-ch9.jpg'
 ICON          = 'icon-default.jpg'
 
-FIX_PLAY_ROOT = "http://fixplay.ninemsn.com.au/"
-FIX_PLAY_LIST = "http://fixplay.ninemsn.com.au/catalogue.aspx"
+SHOW_LIST_URL = 'http://api.brightcove.com/services/library?command=find_all_playlists&page_size=50&get_item_count=true&playlist_fields=id,name,shortDescription'
+API_URL = 'http://api.brightcove.com/services/library?command='
+CAT_URL = API_URL + 'find_all_playlists' + '&page_size=50&get_item_count=true&playlist_fields=id,name,shortDescription'
+PLAYLIST_URL = API_URL + 'find_playlist_by_id' #+ '&playlist_fields=id,name,shortDescription,videoIds,videos'
+TOKEN = 'Vb3fqavTKFDDZbnnGGtbhKxam7uHduOnob-2MJlpHmUnzSMWbDe5bg..'
+#find_video_by_id(token:String, video_id:long, fields:Set, video_fields:EnumSet, custom_fields:Set, media_delivery:Enum, output:Enum):
+VIDEO_URL = API_URL +'find_video_by_id' + '&video_fields=id,name,shortDescription,longDescription,creationDate,publishedDate,thumbnailURL,length,FLVURL'
+
+
 ####################################################################################################
 def Start():
 
-    Plugin.AddPrefixHandler(VIDEO_PREFIX, MainMenu, L('VideoTitle'), ICON, ART)
+    Plugin.AddPrefixHandler(VIDEO_PREFIX, PlaylistMenu, L('VideoTitle'), ICON, ART)
 
     Plugin.AddViewGroup("InfoList", viewMode="InfoList", mediaType="items")
     Plugin.AddViewGroup("List", viewMode="List", mediaType="items")
 
     MediaContainer.art = R(ART)
     MediaContainer.title1 = NAME
-    DirectoryItem.thumb = R(ICON)
+    DirectoryItem.thumb = R(ICON) 
     
 ####################################################################################################
-def MainMenu():
-    dir = MediaContainer(viewGroup="List")
-    content = XML.ElementFromURL(FIX_PLAY_LIST, True)
-    for item in content.xpath('//div[@id="cat_hl_220089"]/span'):
-        image = item.xpath('./span[@class="image"]/a/img')[0].get('src')
-        image = FIX_PLAY_ROOT + image
-        title = item.xpath('./span[@class="title"]/a[2]')[0].text
-        link = item.xpath('./span[@class="title"]/a[2]')[0].get('href')
-        link = FIX_PLAY_ROOT + link
-        Log ("MainMenu -Link: " + link)
-        dir.Append(Function(DirectoryItem(SeasonMenu, title=title, thumb=image), pageUrl = link, thumbUrl=image))
-    return dir
-
-####################################################################################################
-def SeasonMenu(sender, pageUrl, thumbUrl):
-    Log("In season menu")
-    myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
-    xpathQuery = '//div[@id="cat_hl_224591"]/span/span/a'
-    Log ("reading pageUrl: " + pageUrl)
-  
-    dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
-    content = XML.ElementFromURL(pageUrl, True)
-    videopage = HTTP.Request(pageUrl)
-    #vidurl  = re.search("QTObject\(\"(.+?)\"", videopage).group(1)
-    vidIter = re.finditer("\/section.aspx\?sectionid=.+?\<", videopage)
-    seasons = {}
+@route(VIDEO_PREFIX + '/playlist')
+def PlaylistMenu(playlistID=None):
+       
+    if playlistID is None:
+        Log('Attempting: ' + CAT_URL + '&token=' + TOKEN)
+        content = JSON.ObjectFromURL(CAT_URL + '&token=' + TOKEN)
+        title = 'CH9 On Demand'
     
-    for match in vidIter:
-        Log("found match: "+ match.group())
-        seasonURL = re.search("\/.+?\"", match.group()).group()
-        lengthUrl = len(seasonURL)
-        seasonURL = FIX_PLAY_ROOT + seasonURL[0:lengthUrl-1]
-        seasonTxt = re.search("\>.+\s.+\<", match.group()).group()
-        lengthTxt = len(seasonTxt)
-        seasonTxt = seasonTxt[1:lengthTxt-1]
-        if not seasons.has_key(seasonURL):
-            seasons[seasonURL] = seasonTxt
-            Log("seasonURL=" + seasonURL)
-            Log("seasonTxt=" + seasonTxt)
-            dir.Append(Function(DirectoryItem(VideoPage, title=seasonTxt, thumb=thumbUrl), pageUrl = seasonURL))
+    else:
+        content = JSON.ObjectFromURL(PLAYLIST_URL + '&playlist_id=' + str(playlistID) + '&token=' + TOKEN)
+        title = content['name']
+    
+    oc = ObjectContainer(title2=title, view_group='InfoList')
+    
+    if playlistID is None:
+        for item in content['items']:
+            if item['name'] in ('Breaking News','World','Finance','Sport','Entertainment','National'):
+                link = DirectoryObject(
+                key=Callback(PlaylistMenu, playlistID=item['id']),
+                title=item['name']
+                )
+                oc.add(link)
+    else:
+        for item in content['videos']:
         
-    return dir
-
-####################################################################################################
-def VideoPage(sender, pageUrl):
-    dir = MediaContainer(title2=sender.itemTitle, viewGroup="InfoList")
-    myNamespaces = {'ns1':'http://www.w3.org/1999/xhtml'}
-    content = XML.ElementFromURL(pageUrl, True)
-    Log ("reading pageUrl: " + pageUrl)
-    xpathQuery = "//*[@id=\"season_table\"]/span/div"
-    for item in content.xpath(xpathQuery, namespaces=myNamespaces):
-        episode = item.xpath(".//div")[0].text
-        title = item.xpath(".//div[@class='td col2']/h3")[0].text
-        summary = item.xpath(".//div[@class='td col2']//span[@class='season_desc']")[0].text
-        link = item.xpath(".//div[@class='td col3']/a")[0].get('href')
-        link = FIX_PLAY_ROOT + link
-        Log(link)
-        dir.Append(WebVideoItem(link, title=title, summary=summary))
-        
-    return dir
+            Log('got video ' + str(item))
+            oc.add(VideoClipObject(
+                url=VIDEO_URL+ '&video_id='+str(item['id'])+'&token='+ TOKEN,
+                title=item['name'],
+                thumb = item['thumbnailURL'],
+                duration = item['length'],
+                #originally_available_at = DateTime.FromTimestamp(int(item['publishedDate'])),            
+            ))
+          
+    return oc
