@@ -46,22 +46,28 @@ def ShowMenu(showQuery=None):
     
     if showQuery is None:
         oc = ObjectContainer(title2='shows', view_group='List')
-        shows = XML.ElementFromURL('http://vod.ten.com.au/config/windows8/?includeAll=Sites.VideoQueries&appid=F%2fuisp9hN%2bE%3d', cacheTime=DEFAULT_CACHE_INTERVAL)
-        for show in shows.xpath("/application/home/videoGroups/videoGroup[@title='TV Shows']/items/item"):
-            showName = show.xpath("name")[0].text
-            thumb = show.xpath("image")[0].text            
-            showQuery = show.xpath("query")[0].text
-            showQuery = re.findall('tv_show:(.*?)(?:&+.*|$)', showQuery, re.DOTALL)[0]
-            link = DirectoryObject(
-                key=Callback(ShowMenu, showQuery=showQuery),
-                title=showName,
-                thumb=thumb
-                )
-            oc.add(link)
+        shows = HTML.ElementFromURL(BASE_URL, cacheTime=DEFAULT_CACHE_INTERVAL)
+        Log('got shows')
+        for show in shows.xpath("id('nav')/li/ul/li/a"):
+            showName = show.get('title')
+            Log('Got show ' + showName)
+            showQry = show.get('query')
+            Log('Got show query pre reg exp: ' + showQry)
+            try:
+                RE_QRY = Regex('tag=(.*)&?',  Regex.DOTALL)    
+                showQuery = RE_QRY.search(showQry).group(1)
+                Log('got show query: ' + showQuery)
+                link = DirectoryObject(
+                    key=Callback(ShowMenu, showQuery=showQuery),
+                    title=showName,
+                    )
+                oc.add(link)
+            except:
+                Log('Failed to get tag')
             
     else:
         oc = ObjectContainer(title2=showQuery, view_group='InfoList')
-        content = JSON.ObjectFromURL(SEARCH_URL + '&token=' + TOKEN + '&all=' + showQuery, cacheTime=DEFAULT_CACHE_INTERVAL)
+        content = JSON.ObjectFromURL(SEARCH_URL + '&token=' + TOKEN + '&all=tag:' + showQuery, cacheTime=DEFAULT_CACHE_INTERVAL)
         for show in content['items']:
             oc.add(VideoClipObject(
                 url=VIDEO_URL+ '&video_id='+str(show['id'])+'&token='+ TOKEN,
