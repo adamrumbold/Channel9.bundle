@@ -69,6 +69,7 @@ def ShowMenu(showQuery=None):
         oc = ObjectContainer(title2=showQuery, view_group='InfoList')
         content = JSON.ObjectFromURL(SEARCH_URL + '&token=' + TOKEN + '&all=tag:' + showQuery, cacheTime=DEFAULT_CACHE_INTERVAL)
         for show in content['items']:
+            Log('Adding show:' + str(show['id']))
             oc.add(VideoClipObject(
                 url=VIDEO_URL+ '&video_id='+str(show['id'])+'&token='+ TOKEN,
                 title=show['name'],

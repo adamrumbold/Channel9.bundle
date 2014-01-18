@@ -38,5 +38,25 @@ def MediaObjectsForURL(url):
 
 def PlayVideo(url):
     
-    data = JSON.ObjectFromURL(url)    
-    return Redirect(data['FLVURL'])
+    data = JSON.ObjectFromURL(url)
+    flvURL = data['FLVURL']
+    Log('Attempting to play: ' + data['FLVURL'])
+    RE_RTMP = Regex('^rtmp://')
+    isRTMP = RE_RTMP.search(flvURL)
+    if isRTMP is None:
+        return flvURL
+    else:
+    
+        RE_CLIP = Regex('^rtmp://vod\.netshow\.ninemsn\.com\.au/ondemand/(.*)$')
+        RE_RTMP = Regex('^rtmp://.*/ondemand/')
+        Clip = RE_CLIP.search(flvURL).group(1)
+        Rtmp = RE_RTMP.search(flvURL).group(0)
+        Log('Got RTMP: ' + Rtmp)
+        Log('Got Clip: ' + Clip)
+        #rtmpVid = RTMPVideoURL(url=rtmpURL, clip=CLIP + video_url, swf_url=SWF_URL)
+        swf_player = 'http://c.brightcove.com/services/viewer/federated_f9'
+    
+        rtmpVid = RTMPVideoURL(url=Rtmp, clip=Clip, swf_url = swf_player)
+        return IndirectResponse(VideoClipObject, key=rtmpVid)
+    
+    #return Redirect(data['FLVURL'])
