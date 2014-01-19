@@ -1,42 +1,138 @@
+AMF_URL = 'http://c.brightcove.com/services/messagebroker/amf'
 
 def MetadataObjectForURL(url):
     
-    data = JSON.ObjectFromURL(url)
-    title = data['name']
-    summary = data['shortDescription']
-    thumb = data['thumbnailURL']
-    duration = data['length']
-    originally_available_at = Datetime.FromTimestamp(int(data['publishedDate'])/1000)
+    details = DoAmfRequest(url)    
+    page = HTML.ElementFromURL(url)
     
-    return VideoClipObject(
+    show = page.xpath("//div[@class='episode-details']/h1/a")[0].text
+    title = page.xpath("//div[@class='episode-details']/h2")[0].text
+    summary = page.xpath("//div[@class='episode-details']/h3")[0].text
+    length = page.xpath("//div[@class='episode-details']/dl[@class='info']/dd[@class='length']")[0].text
+    thumb = page.xpath("//div[@class='entry available playing']/div[@class='media']/a/img")[0].get('src')
+    Log('Got show:' + show)
+    Log('Got title:' + title)
+    try:
+        Log('Got summary:' + summary)
+    except:
+        None
+    Log('Got length:' + length)
+    Log('Got thumb:' + thumb)
+        
+    return EpisodeObject(
         title=title,
         summary=summary,
         thumb=thumb,
-        duration=duration,
-        originally_available_at=originally_available_at,
+        show = show,
     )
 
-
+@deferred
 def MediaObjectsForURL(url):
     
-    container = Container.MP4
-    video_codec = VideoCodec.H264
-    audio_codec = AudioCodec.AAC
-    audio_channels = 2
-
-    return [
-        MediaObject(
-            protocol='http',
-            container = container,
-            video_codec = video_codec,
-            audio_codec = audio_codec,
-            video_resolution='576',
-            audio_channels=2,
-            parts=[PartObject(key=Callback(PlayVideo, url=url))],
-        ),
-    ]
-
-def PlayVideo(url):
+    details = DoAmfRequest(url)
+    objects = []
+    videoRes = []
     
-    data = JSON.ObjectFromURL(url)    
-    return Redirect(data['FLVURL'])
+    for video in details['renditions']:
+        player_url = video['defaultURL']
+        player = player_url[:player_url.find('&')]
+        clip = player_url[player_url.find('&') + 1:]
+        swf_url = "http://admin.brightcove.com/viewer/us20140108.2039/BrightcoveBootloader.swf"
+        Log('dealing with rendition: ' + str(video['encodingRate']))
+        
+        if video['frameHeight'] in videoRes:
+            Log('duplicate rendition found for ' + str(video['frameHeight']))
+        else:
+            objects.append(MediaObject(
+                parts = [PartObject(key = RTMPVideoURL(player, clip, swf_url = swf_url))],
+                video_resolution = video['frameHeight'],
+                video_frame_rate = video['encodingRate']))
+            
+            videoRes.append(video['frameHeight'])
+        
+    objects = sorted(objects, key=lambda media: media.video_frame_rate, reverse=True)   
+    return objects
+    
+
+#########################################################################################
+def DoAmfRequest(url):
+    #Javascript is inserting element into DOM so simply requesting page will not
+    # give us directly the brightcove PlayerID/PlayerKey
+    #
+    # instead we get the JS file that contains the PlayerID/PlayerKey
+    # but we can get the videoPlayer directly from the page
+    page = HTTP.Request(url).content
+    VIDEO_PLAYER = Regex('data-video-id="([0-9]+)"')
+    videoPlayer = VIDEO_PLAYER.search(page).group(1)
+    Log('videoPlayer: ' +videoPlayer)
+
+    JS_EPISODE = Regex('/js/ninemsn/portal/jumpin/website/episode/episode\..*\.js')
+    try:
+        episodeJS = JS_EPISODE.search(page).group(0)
+        Log('Got episode JS:' + episodeJS)
+        JSpage = HTTP.Request('http://www.jump-in.com.au'+episodeJS).content
+        PLAYER = Regex('brightcove:\{player:\{id:"([0-9]+)",key:"([\w~,]+)"\}')
+        playerID = PLAYER.search(JSpage).group(1)
+        playerKey = PLAYER.search(JSpage).group(2)
+        Log('JS playerID: ' + playerID)
+        Log('JS playerKEY: ' + playerKey)
+    except:
+        Log('failed to get episode JS')
+        playerID = '2707570115001'    
+        playerKey = 'AQ~~,AAABecFwRRk~,e1HkYhZIbphOhnqxdoxcNshnyvC4rVPN'
+        Log('PlayerID: '+playerID)
+        Log('playerKey: ' + playerKey)
+    
+    result = AmfRequest(url=url, playerID=playerID, playerKey=playerKey, videoPlayer=videoPlayer)
+   
+    return result
+ 
+#########################################################################################
+def AmfRequest(url=None, playerID=None, playerKey=None, videoPlayer=None):
+ 
+    endpoint = AMF_URL ## http://c.brightcove....ssagebroker/amf
+ 
+    if playerKey:
+        endpoint += '?playerId=%s' % playerKey
+ 
+    client = AMF.RemotingService(url=endpoint, user_agent='', amf_version=3)
+    service = client.getService('com.brightcove.experience.ExperienceRuntimeFacade')
+   
+    AMF.RegisterClass(ContentOverride, 'com.brightcove.experience.ContentOverride')
+    AMF.RegisterClass(ViewerExperienceRequest, 'com.brightcove.experience.ViewerExperienceRequest')
+ 
+    video_obj = ContentOverride(videoPlayer)
+    experience = ViewerExperienceRequest(url, playerID, playerKey, video_obj)
+   
+    try:
+   
+        result = service.getDataForExperience('', experience)
+        Log(result.items())
+        return result['programmedContent']['videoPlayer']['mediaDTO']
+    except:
+        Log('Exception in AMF Request')
+        raise Ex.MediaGeoblocked
+
+
+####################################################################################################
+class ContentOverride(object):
+        def __init__ (self, videoPlayer=None):
+                self.contentType = int(0)
+                self.contentIds = None
+                self.target = 'videoPlayer'
+                self.contentId = int(videoPlayer)
+                self.featuredRefId = None
+                self.contentRefIds = None
+                self.featuredId = float('nan')
+                self.contentRefId = None
+
+class ViewerExperienceRequest(object):
+        def __init__ (self, url=None, playerID=None, playerKey=None, video_obj=None):
+                self.experienceId = int(playerID)
+                self.playerKey = playerKey
+                self.contentOverrides = []
+                self.contentOverrides.append(video_obj)
+                self.TTLToken = ''
+                self.URL = url
+                self.deliveryType = float('nan')
+                
