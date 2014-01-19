@@ -10,7 +10,6 @@
                 <string>com.plexapp.plugins.ch9</string>
                 <key>URLPatterns</key>
                 <array>
-                    <string>http://api.brightcove.com/services/library.+</string>
                     <string>http://jump-in.com.au/show/.+</string>
                 </array>
             </dict>

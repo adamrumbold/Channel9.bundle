@@ -31,18 +31,25 @@ def MediaObjectsForURL(url):
     
     details = DoAmfRequest(url)
     objects = []
+    videoRes = []
     
     for video in details['renditions']:
-      player_url = video['defaultURL']
-      player = player_url[:player_url.find('&')]
-      clip = player_url[player_url.find('&') + 1:]
-      swf_url = "http://admin.brightcove.com/viewer/us20140108.2039/BrightcoveBootloader.swf"
-  
-      objects.append(MediaObject(
-        parts = [PartObject(key = RTMPVideoURL(player, clip, swf_url = swf_url))],
-        video_resolution = video['frameHeight'],
-        video_frame_rate = video['encodingRate']))
-  
+        player_url = video['defaultURL']
+        player = player_url[:player_url.find('&')]
+        clip = player_url[player_url.find('&') + 1:]
+        swf_url = "http://admin.brightcove.com/viewer/us20140108.2039/BrightcoveBootloader.swf"
+        Log('dealing with rendition: ' + str(video['encodingRate']))
+        
+        if video['frameHeight'] in videoRes:
+            Log('duplicate rendition found for ' + str(video['frameHeight']))
+        else:
+            objects.append(MediaObject(
+                parts = [PartObject(key = RTMPVideoURL(player, clip, swf_url = swf_url))],
+                video_resolution = video['frameHeight'],
+                video_frame_rate = video['encodingRate']))
+            
+            videoRes.append(video['frameHeight'])
+        
     objects = sorted(objects, key=lambda media: media.video_frame_rate, reverse=True)   
     return objects
     
