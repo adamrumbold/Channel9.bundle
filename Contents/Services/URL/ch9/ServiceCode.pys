@@ -1,62 +1,150 @@
+AMF_URL = 'http://c.brightcove.com/services/messagebroker/amf'
 
 def MetadataObjectForURL(url):
+    player_id = '2707570115001'
+    videoPlayer = '3014920178001'
+    Log('Getting metadata object for: ' + url)
     
-    data = JSON.ObjectFromURL(url)
-    title = data['name']
-    summary = data['shortDescription']
-    thumb = data['thumbnailURL']
-    duration = data['length']
-    originally_available_at = Datetime.FromTimestamp(int(data['publishedDate'])/1000)
+    details = DoAmfRequest(url)
     
-    return VideoClipObject(
+    page = HTML.ElementFromURL(url)
+    #data = page.xpath("//div[@class='episode-details']")[0]
+    
+    show = page.xpath("//div[@class='episode-details']/h1/a")[0].text
+    title = page.xpath("//div[@class='episode-details']/h2")[0].text
+    summary = page.xpath("//div[@class='episode-details']/h3")[0].text
+    length = page.xpath("//div[@class='episode-details']/dl[@class='info']/dd[@class='length']")[0].text
+    thumb = page.xpath("//div[@class='entry available playing']/div[@class='media']/a/img")[0].get('src')
+    Log('Got show:' + show)
+    Log('Got title:' + title)
+    Log('Got summary:' + summary)
+    Log('Got length:' + length)
+    Log('Got thumb:' + thumb)
+        
+    return EpisodeObject(
         title=title,
         summary=summary,
         thumb=thumb,
-        duration=duration,
-        originally_available_at=originally_available_at,
+        show = show,
     )
 
-
+@deferred
 def MediaObjectsForURL(url):
     
-    container = Container.MP4
-    video_codec = VideoCodec.H264
-    audio_codec = AudioCodec.AAC
-    audio_channels = 2
+    player_id = '2707570115001'
+    videoPlayer = '3014920178001'
+    details = DoAmfRequest(url)
+    Log('got details: ' + str(details))
+    objects = []
+    
+    for video in details['renditions']:
+      player_url = video['defaultURL']
+      player = player_url[:player_url.find('&')]
+      clip = player_url[player_url.find('&') + 1:]
+      swf_url = "http://admin.brightcove.com/viewer/us20140108.2039/BrightcoveBootloader.swf"
+  
+      objects.append(MediaObject(
+        parts = [PartObject(key = RTMPVideoURL(player, clip, swf_url = swf_url))],
+        video_resolution = video['frameHeight'],
+        video_frame_rate = video['encodingRate']))
+  
+    objects = sorted(objects, key=lambda media: media.video_frame_rate, reverse=True)   
+    return objects
+    
 
-    return [
-        MediaObject(
-            protocol='http',
-            container = container,
-            video_codec = video_codec,
-            audio_codec = audio_codec,
-            video_resolution='576',
-            audio_channels=2,
-            parts=[PartObject(key=Callback(PlayVideo, url=url))],
-        ),
-    ]
+#########################################################################################
+def DoAmfRequest(url):
+    Log('Get Data From:::: '+url)
+    #page = HTML.ElementFromURL(url)
+    page = HTTP.Request(url).content
+    
+    JS_EPISODE = Regex("'gimme.bundle\(\['//admin\.brightcove\.com/js/BrightcoveExperiences\.js', '(/js/ninemsn/portal/jumpin/website/episode/episode\..*.js)")
+    try:
+        episodeJS = JS_EPISODE.search(page).group(1)
+        Log('Got episode JS:' + episodeJS)
+    except:
+        Log('failed to get episode JS')
+        
+    PLAYER_ID = Regex('"playerID":"(\w+)"', Regex.DOTALL)
+    PLAYER_KEY = Regex('"playerKey":"([^"]+)"', Regex.DOTALL)
+    #VIDEO_PLAYER = Regex('"videoPlayer":"([^"]+)"', Regex.DOTALL)
+    VIDEO_PLAYER = Regex('data-video-id="([0-9]+)"')
+    #Log('Got page >>>>>>>')
+    #Log(page)
+    #data = page.xpath("//object[@class='BrightcoveExperience']")
+                                        
+    #data = page.xpath("//object[@id='BC_616']")
+    #data = page.xpath('//*[@class="BrightcoveExperience"]')
+    #if len(data) == 0:
+    #    Log('No data')
+    #    return None
+    #else:
+    #    data = data[0]
+ 
+    #playerID = data.xpath("./param[@name='playerID']")[0].get('value')
+    #playerID = PLAYER_ID.search(page).groups()[0]
+    playerID = '2707570115001'
+    Log('PlayerID: '+playerID)
+   
+    videoPlayer = VIDEO_PLAYER.search(page).group(1)
+    #videoPlayer = data.xpath('./param[@name="@videoPlayer"]')[0].get('value').strip('ref:')
+    Log('videoPlayer: ' +videoPlayer)
+    
+    #playerKey = data.xpath('./param[@name="playerKey"]')[0].get('value')
+    #playerKey = PLAYER_KEY.search(page).groups()[0]
+    playerKey = 'AQ~~,AAABecFwRRk~,e1HkYhZIbphOhnqxdoxcNshnyvC4rVPN'
+    Log('playerKey: ' + playerKey)
+    
+    result = AmfRequest(url=url, playerID=playerID, playerKey=playerKey, videoPlayer=videoPlayer)
+   
+    return result
+ 
+#########################################################################################
+def AmfRequest(url=None, playerID=None, playerKey=None, videoPlayer=None):
+ 
+    endpoint = AMF_URL ## http://c.brightcove....ssagebroker/amf
+ 
+    if playerKey:
+        endpoint += '?playerId=%s' % playerKey
+ 
+    client = AMF.RemotingService(url=endpoint, user_agent='', amf_version=3)
+    service = client.getService('com.brightcove.experience.ExperienceRuntimeFacade')
+   
+    AMF.RegisterClass(ContentOverride, 'com.brightcove.experience.ContentOverride')
+    AMF.RegisterClass(ViewerExperienceRequest, 'com.brightcove.experience.ViewerExperienceRequest')
+ 
+    video_obj = ContentOverride(videoPlayer)
+    experience = ViewerExperienceRequest(url, playerID, playerKey, video_obj)
+   
+    try:
+   
+        result = service.getDataForExperience('', experience)
+        Log(result.items())
+        return result['programmedContent']['videoPlayer']['mediaDTO']
+    except:
+        Log('Exception in AMF Request')
+        raise Ex.MediaGeoblocked
 
-def PlayVideo(url):
-    
-    data = JSON.ObjectFromURL(url)
-    flvURL = data['FLVURL']
-    Log('Attempting to play: ' + data['FLVURL'])
-    RE_RTMP = Regex('^rtmp://')
-    isRTMP = RE_RTMP.search(flvURL)
-    if isRTMP is None:
-        return flvURL
-    else:
-    
-        RE_CLIP = Regex('^rtmp://vod\.netshow\.ninemsn\.com\.au/ondemand/(.*)$')
-        RE_RTMP = Regex('^rtmp://.*/ondemand/')
-        Clip = RE_CLIP.search(flvURL).group(1)
-        Rtmp = RE_RTMP.search(flvURL).group(0)
-        Log('Got RTMP: ' + Rtmp)
-        Log('Got Clip: ' + Clip)
-        #rtmpVid = RTMPVideoURL(url=rtmpURL, clip=CLIP + video_url, swf_url=SWF_URL)
-        swf_player = 'http://c.brightcove.com/services/viewer/federated_f9'
-    
-        rtmpVid = RTMPVideoURL(url=Rtmp, clip=Clip, swf_url = swf_player)
-        return IndirectResponse(VideoClipObject, key=rtmpVid)
-    
-    #return Redirect(data['FLVURL'])
+
+####################################################################################################
+class ContentOverride(object):
+        def __init__ (self, videoPlayer=None):
+                self.contentType = int(0)
+                self.contentIds = None
+                self.target = 'videoPlayer'
+                self.contentId = int(videoPlayer)
+                self.featuredRefId = None
+                self.contentRefIds = None
+                self.featuredId = float('nan')
+                self.contentRefId = None
+
+class ViewerExperienceRequest(object):
+        def __init__ (self, url=None, playerID=None, playerKey=None, video_obj=None):
+                self.experienceId = int(playerID)
+                self.playerKey = playerKey
+                self.contentOverrides = []
+                self.contentOverrides.append(video_obj)
+                self.TTLToken = ''
+                self.URL = url
+                self.deliveryType = float('nan')
+                
