@@ -63,8 +63,8 @@ def DoAmfRequest(url):
     try:
         episodeJS = JS_EPISODE.search(page).group(0)
         Log('Got episode JS:' + episodeJS)
-        JSpage = HTTP.Request('http://www.jump-in.com.au'+episodeJS)
-        PLAYER = Regex('brightcove\:\{player\:\{id\:"([0-9]+)",key\:"(.*)"\}')
+        JSpage = HTTP.Request('http://www.jump-in.com.au'+episodeJS).content
+        PLAYER = Regex('brightcove:\{player:\{id:"([0-9]+)",key:"([\w~,]+)"\}')
         playerID = PLAYER.search(JSpage).group(1)
         playerKey = PLAYER.search(JSpage).group(2)
         Log('JS playerID: ' + playerID)
