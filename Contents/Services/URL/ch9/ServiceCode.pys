@@ -1,14 +1,9 @@
 AMF_URL = 'http://c.brightcove.com/services/messagebroker/amf'
 
 def MetadataObjectForURL(url):
-    player_id = '2707570115001'
-    videoPlayer = '3014920178001'
-    Log('Getting metadata object for: ' + url)
     
-    details = DoAmfRequest(url)
-    
+    details = DoAmfRequest(url)    
     page = HTML.ElementFromURL(url)
-    #data = page.xpath("//div[@class='episode-details']")[0]
     
     show = page.xpath("//div[@class='episode-details']/h1/a")[0].text
     title = page.xpath("//div[@class='episode-details']/h2")[0].text
@@ -17,7 +12,10 @@ def MetadataObjectForURL(url):
     thumb = page.xpath("//div[@class='entry available playing']/div[@class='media']/a/img")[0].get('src')
     Log('Got show:' + show)
     Log('Got title:' + title)
-    Log('Got summary:' + summary)
+    try:
+        Log('Got summary:' + summary)
+    except:
+        None
     Log('Got length:' + length)
     Log('Got thumb:' + thumb)
         
@@ -31,10 +29,7 @@ def MetadataObjectForURL(url):
 @deferred
 def MediaObjectsForURL(url):
     
-    player_id = '2707570115001'
-    videoPlayer = '3014920178001'
     details = DoAmfRequest(url)
-    Log('got details: ' + str(details))
     objects = []
     
     for video in details['renditions']:
@@ -54,46 +49,32 @@ def MediaObjectsForURL(url):
 
 #########################################################################################
 def DoAmfRequest(url):
-    Log('Get Data From:::: '+url)
-    #page = HTML.ElementFromURL(url)
+    #Javascript is inserting element into DOM so simply requesting page will not
+    # give us directly the brightcove PlayerID/PlayerKey
+    #
+    # instead we get the JS file that contains the PlayerID/PlayerKey
+    # but we can get the videoPlayer directly from the page
     page = HTTP.Request(url).content
-    
-    JS_EPISODE = Regex("'gimme.bundle\(\['//admin\.brightcove\.com/js/BrightcoveExperiences\.js', '(/js/ninemsn/portal/jumpin/website/episode/episode\..*.js)")
+    VIDEO_PLAYER = Regex('data-video-id="([0-9]+)"')
+    videoPlayer = VIDEO_PLAYER.search(page).group(1)
+    Log('videoPlayer: ' +videoPlayer)
+
+    JS_EPISODE = Regex('/js/ninemsn/portal/jumpin/website/episode/episode\..*\.js')
     try:
-        episodeJS = JS_EPISODE.search(page).group(1)
+        episodeJS = JS_EPISODE.search(page).group(0)
         Log('Got episode JS:' + episodeJS)
+        JSpage = HTTP.Request('http://www.jump-in.com.au'+episodeJS)
+        PLAYER = Regex('brightcove\:\{player\:\{id\:"([0-9]+)",key\:"(.*)"\}')
+        playerID = PLAYER.search(JSpage).group(1)
+        playerKey = PLAYER.search(JSpage).group(2)
+        Log('JS playerID: ' + playerID)
+        Log('JS playerKEY: ' + playerKey)
     except:
         Log('failed to get episode JS')
-        
-    PLAYER_ID = Regex('"playerID":"(\w+)"', Regex.DOTALL)
-    PLAYER_KEY = Regex('"playerKey":"([^"]+)"', Regex.DOTALL)
-    #VIDEO_PLAYER = Regex('"videoPlayer":"([^"]+)"', Regex.DOTALL)
-    VIDEO_PLAYER = Regex('data-video-id="([0-9]+)"')
-    #Log('Got page >>>>>>>')
-    #Log(page)
-    #data = page.xpath("//object[@class='BrightcoveExperience']")
-                                        
-    #data = page.xpath("//object[@id='BC_616']")
-    #data = page.xpath('//*[@class="BrightcoveExperience"]')
-    #if len(data) == 0:
-    #    Log('No data')
-    #    return None
-    #else:
-    #    data = data[0]
- 
-    #playerID = data.xpath("./param[@name='playerID']")[0].get('value')
-    #playerID = PLAYER_ID.search(page).groups()[0]
-    playerID = '2707570115001'
-    Log('PlayerID: '+playerID)
-   
-    videoPlayer = VIDEO_PLAYER.search(page).group(1)
-    #videoPlayer = data.xpath('./param[@name="@videoPlayer"]')[0].get('value').strip('ref:')
-    Log('videoPlayer: ' +videoPlayer)
-    
-    #playerKey = data.xpath('./param[@name="playerKey"]')[0].get('value')
-    #playerKey = PLAYER_KEY.search(page).groups()[0]
-    playerKey = 'AQ~~,AAABecFwRRk~,e1HkYhZIbphOhnqxdoxcNshnyvC4rVPN'
-    Log('playerKey: ' + playerKey)
+        playerID = '2707570115001'    
+        playerKey = 'AQ~~,AAABecFwRRk~,e1HkYhZIbphOhnqxdoxcNshnyvC4rVPN'
+        Log('PlayerID: '+playerID)
+        Log('playerKey: ' + playerKey)
     
     result = AmfRequest(url=url, playerID=playerID, playerKey=playerKey, videoPlayer=videoPlayer)
    
