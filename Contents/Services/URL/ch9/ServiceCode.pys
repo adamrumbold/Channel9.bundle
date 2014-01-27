@@ -1,3 +1,5 @@
+import re
+
 AMF_URL = 'http://c.brightcove.com/services/messagebroker/amf'
 
 def MetadataObjectForURL(url):
@@ -6,25 +8,50 @@ def MetadataObjectForURL(url):
     page = HTML.ElementFromURL(url)
     
     show = page.xpath("//div[@class='episode-details']/h1/a")[0].text
-    title = page.xpath("//div[@class='episode-details']/h2")[0].text
-    summary = page.xpath("//div[@class='episode-details']/h3")[0].text
+    episodeText = page.xpath("//div[@class='episode-details']/h2")[0].text
+    title = page.xpath("//div[@class='episode-details']/h3")[0].text if page.xpath("//div[@class='episode-details']/h3")[0].text != None else episodeText
+    summary = page.xpath("//div[@class='episode-details']/p")[0].text
     length = page.xpath("//div[@class='episode-details']/dl[@class='info']/dd[@class='length']")[0].text
     thumb = page.xpath("//div[@class='entry available playing']/div[@class='media']/a/img")[0].get('src')
+    thumb = re.sub("(width=\d+&height=\d+)", "width=720&height=380", thumb)
     Log('Got show:' + show)
     Log('Got title:' + title)
+    
+    if episodeText != None:
+        matchObj = re.search('(\d+$)', episodeText, re.M)
+        
+        if matchObj:
+            episodeNumber = int(matchObj.group())
+    
+    seasonText = page.xpath("//ul[@id='season-selector']/li/a[@class='active']")[0].get('title')
+    
+    if seasonText != None:
+        matchObj = re.search('(\d+$)', seasonText, re.M)
+        
+        if matchObj:
+            seasonNumber = int(matchObj.group())
+    
     try:
         Log('Got summary:' + summary)
     except:
         None
     Log('Got length:' + length)
     Log('Got thumb:' + thumb)
-        
-    return EpisodeObject(
+    
+    episode = EpisodeObject(
         title=title,
         summary=summary,
         thumb=thumb,
         show = show,
     )
+    
+    if episodeNumber != None:
+        episode.index = episodeNumber
+        
+    if seasonNumber != None:
+        episode.season = seasonNumber
+        
+    return episode
 
 @deferred
 def MediaObjectsForURL(url):
