@@ -50,7 +50,7 @@ def HomeMenu():
 @route(VIDEO_PREFIX + '/show')
 def ShowMenu(filter=None):
     
-    oc = ObjectContainer(title2='shows', view_group='List')
+    oc = ObjectContainer(title2='shows', view_group='InfoList')
     shows = HTML.ElementFromURL(JUMP_URL, cacheTime=DEFAULT_CACHE_INTERVAL)
     
     if filter is None:
@@ -64,30 +64,96 @@ def ShowMenu(filter=None):
     
     for show in shows.xpath(xpathQry):
             showName = show.xpath("div[@class='details']/h3/a")[0].text
+            showSummary = show.xpath("div[@class='details']/div[@class='extra-details']/p")[0].text
             showURL = JUMP_BASE + show.xpath("div[@class='details']/h3/a")[0].get('href')
+            showThumb = show.xpath("div[@class='media']/a/img")[0].get('src'),
+            showThumb = re.sub("(width=\d+&height=\d+)", "width=720&height=380", showThumb[0])
             Log('Got show: ' + showName)
             Log('Got show url: ' + showURL)
-            link = DirectoryObject(
+            link = TVShowObject(
                     key=Callback(EpisodeMenu, url=showURL),
+                    rating_key = showURL,
                     title=showName,
+                    thumb=showThumb,
+                    summary=showSummary,
                     )
             oc.add(link)    
-    return oc        
+    return oc
+
+@route(VIDEO_PREFIX + '/season')
+def SeasonMenu(url=None):
+    data = HTML.ElementFromURL(url)
+    showName = data.xpath("//div[@class='content']/div[@class='episode-details']/h1")[0].text
+    showThumb = data.xpath("//div[@class='episode-media']/img")[0].get('src')
+    showThumb = re.sub("(width=\d+&height=\d+)", "width=720&height=380", showThumb)
+    
+    oc = ObjectContainer(title1=showName, view_group='InfoList')
+    seasons = data.xpath("//ul[@id='season-selector']/li")
+    seasons.reverse()
+    for season in seasons:
+        seasonObj = season.xpath("a")[0]
+        seasonTitle = seasonObj.get('title')
+        seasonURL = JUMP_BASE + seasonObj.get('href')
+
+        vco = SeasonObject(
+           key=Callback(EpisodeMenu, url=seasonURL),
+           rating_key = seasonURL,
+           title=seasonTitle,
+           thumb=showThumb
+        )
+        oc.add(vco)
+            
+
+    return oc
  
 @route(VIDEO_PREFIX + '/episode') 
 def EpisodeMenu(url=None):
-    oc = ObjectContainer(title2='episodes', view_group='InfoList')
     data = HTML.ElementFromURL(url)
-    for episode in data.xpath("//div[@class='more-episodes']/div[@class='episodes module']/div"):
-        episodeName = episode.xpath('div[2]/h4/a')[0].text
-        episodeLink = JUMP_BASE + episode.xpath('div[2]/h4/a')[0].get('href')
-        episodeSummary = episode.xpath("div[2]/p[@class='summary']")[0].text
+    showName = data.xpath("//div[@class='content']/div[@class='episode-details']/h1")[0].text
+    
+    seasons = data.xpath("//ul[@id='season-selector']/li")
+    seasonText = data.xpath("//ul[@id='season-selector']/li/a[@class='active']")[0].get('title')
+    
+    if seasonText != None:
+        matchObj = re.search('(\d+$)', seasonText, re.M)
         
-        vco = VideoClipObject(
+        if matchObj:
+            seasonNumber = int(matchObj.group())
+
+    if len(seasons) > 1 and re.search("episodes\/$", url, re.M):
+        return SeasonMenu(url)
+    
+    oc = ObjectContainer(title1=showName, view_group='InfoList')
+
+    episodes = data.xpath("//div[@class='more-episodes']/div[@class='episodes module']/div")
+    episodes.reverse()
+
+    for episode in episodes:
+        episodeText = episode.xpath('div[2]/h4/a')[0].text
+        
+        matchObj = re.search('(\d+$)', episodeText, re.M)
+        
+        if matchObj:
+            episodeNumber = int(matchObj.group())
+        
+        episodeName = episodeText + (": " + episode.xpath("div[2]/p")[0].text if episode.xpath("div[2]/p")[0].text != None else '')
+        episodeLink = JUMP_BASE + episode.xpath('div[2]/h4/a')[0].get('href')
+        episodeSummary = episode.xpath("div[2]/p")[0].text
+        episodeThumb = episode.xpath('div[1]/a/img')[0].get('src')
+        episodeThumb = re.sub("(width=\d+&height=\d+)", "width=720&height=380", episodeThumb)
+
+        vco = EpisodeObject(
            url= episodeLink, 
            title=episodeName,
-           summary=episodeSummary,
+           thumb=episodeThumb,
         )
+
+        if episodeNumber != None:
+            vco.index = episodeNumber
+
+        if seasonNumber != None:
+            vco.season = seasonNumber
+
         oc.add(vco)
 
         
